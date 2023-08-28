@@ -6,7 +6,6 @@ import io.github.jopenlibs.vault.json.Json;
 import io.github.jopenlibs.vault.json.JsonObject;
 import io.github.jopenlibs.vault.json.JsonValue;
 import io.github.jopenlibs.vault.response.LogicalResponse;
-import io.github.jopenlibs.vault.rest.Rest;
 import io.github.jopenlibs.vault.rest.RestResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -29,6 +28,8 @@ import static io.github.jopenlibs.vault.api.LogicalUtilities.jsonObjectToWriteFr
  * usage examples.</p>
  */
 public class Logical extends OperationsBase {
+
+    private static final WriteOptions DEFAULT_WRITE_OPTIONS = new WriteOptions().build();
 
     private String nameSpace;
 
@@ -85,7 +86,7 @@ public class Logical extends OperationsBase {
             throws VaultException {
         return retry(attempt -> {
             // Make an HTTP request to Vault
-            final RestResponse restResponse = new Rest()//NOPMD
+            final RestResponse restResponse = getRest()//NOPMD
                     .url(config.getAddress() + "/v1/" + adjustPathForReadOrWrite(path,
                             config.getPrefixPathDepth(), operation))
                     .header("X-Vault-Token", config.getToken())
@@ -142,7 +143,7 @@ public class Logical extends OperationsBase {
                 attempt -> {
                     // Make an HTTP request to Vault
                     final RestResponse restResponse =
-                            new Rest() //NOPMD
+                            getRest() //NOPMD
                                     .url(config.getAddress() + "/v1/" + adjustPathForReadOrWrite(
                                             path,
                                             config.getPrefixPathDepth(), logicalOperations.readV2))
@@ -202,9 +203,11 @@ public class Logical extends OperationsBase {
     public LogicalResponse write(final String path, final Map<String, Object> nameValuePairs)
             throws VaultException {
         if (engineVersionForSecretPath(path).equals(2)) {
-            return write(path, nameValuePairs, logicalOperations.writeV2, null);
+            return write(path, nameValuePairs, logicalOperations.writeV2, null,
+                    DEFAULT_WRITE_OPTIONS);
         } else {
-            return write(path, nameValuePairs, logicalOperations.writeV1, null);
+            return write(path, nameValuePairs, logicalOperations.writeV1, null,
+                    DEFAULT_WRITE_OPTIONS);
         }
     }
 
@@ -239,47 +242,50 @@ public class Logical extends OperationsBase {
             final Integer wrapTTL)
             throws VaultException {
         if (engineVersionForSecretPath(path).equals(2)) {
-            return write(path, nameValuePairs, logicalOperations.writeV2, wrapTTL);
+            return write(path, nameValuePairs, logicalOperations.writeV2, wrapTTL,
+                    DEFAULT_WRITE_OPTIONS);
         } else {
-            return write(path, nameValuePairs, logicalOperations.writeV1, wrapTTL);
+            return write(path, nameValuePairs, logicalOperations.writeV1, wrapTTL,
+                    DEFAULT_WRITE_OPTIONS);
         }
     }
 
+    /**
+     * <p>Operation to store secrets with the ability to specify additional write options
+     * See {@link #write(String, Map, Integer) write} for common behavior
+     * </p>
+     *
+     * @param path The Vault key value to which to write (e.g. <code>secret/hello</code>)
+     * @param nameValuePairs Secret name and value pairs to store under this Vault key (can be
+     * @param wrapTTL Time (in seconds) which secret is wrapped
+     * @param writeOptions Additional options to be used for the write operation
+     * @return The response information received from Vault
+     * @throws VaultException If invalid engine version or if errors occurs with the REST request,
+     *  and the maximum number of retries is exceeded.
+     */
+    public LogicalResponse write(final String path, final Map<String, Object> nameValuePairs,
+            final Integer wrapTTL, final WriteOptions writeOptions)
+            throws VaultException {
+        if (!this.engineVersionForSecretPath(path).equals(2)) {
+            throw new VaultException("Write options are only supported in KV Engine version 2.");
+        }
+        return write(path, nameValuePairs, logicalOperations.writeV2, wrapTTL, writeOptions);
+    }
+
     private LogicalResponse write(final String path, final Map<String, Object> nameValuePairs,
-            final logicalOperations operation, final Integer wrapTTL) throws VaultException {
+            final logicalOperations operation, final Integer wrapTTL,
+            final WriteOptions writeOptions)
+            throws VaultException {
 
         return retry(attempt -> {
-            JsonObject requestJson = Json.object();
-            if (nameValuePairs != null) {
-                for (final Map.Entry<String, Object> pair : nameValuePairs.entrySet()) {
-                    final Object value = pair.getValue();
-                    if (value == null) {
-                        requestJson = requestJson.add(pair.getKey(), (String) null);
-                    } else if (value instanceof Boolean) {
-                        requestJson = requestJson.add(pair.getKey(), (Boolean) pair.getValue());
-                    } else if (value instanceof Integer) {
-                        requestJson = requestJson.add(pair.getKey(), (Integer) pair.getValue());
-                    } else if (value instanceof Long) {
-                        requestJson = requestJson.add(pair.getKey(), (Long) pair.getValue());
-                    } else if (value instanceof Float) {
-                        requestJson = requestJson.add(pair.getKey(), (Float) pair.getValue());
-                    } else if (value instanceof Double) {
-                        requestJson = requestJson.add(pair.getKey(), (Double) pair.getValue());
-                    } else if (value instanceof JsonValue) {
-                        requestJson = requestJson.add(pair.getKey(),
-                                (JsonValue) pair.getValue());
-                    } else {
-                        requestJson = requestJson.add(pair.getKey(),
-                                pair.getValue().toString());
-                    }
-                }
-            }
-            // Make an HTTP request to Vault
-            final RestResponse restResponse = new Rest()//NOPMD
+            JsonObject dataJson = buildJsonFromMap(nameValuePairs);
+            JsonObject optionsJson = buildJsonFromMap(writeOptions.getOptionsMap());
+             // Make an HTTP request to Vault
+            final RestResponse restResponse = getRest()//NOPMD
                     .url(config.getAddress() + "/v1/" + adjustPathForReadOrWrite(path,
                             config.getPrefixPathDepth(), operation))
-                    .body(jsonObjectToWriteFromEngineVersion(operation, requestJson).toString()
-                            .getBytes(StandardCharsets.UTF_8))
+                    .body(jsonObjectToWriteFromEngineVersion(operation, dataJson, optionsJson)
+                            .toString().getBytes(StandardCharsets.UTF_8))
                     .header("X-Vault-Token", config.getToken())
                     .header("X-Vault-Namespace", this.nameSpace)
                     .header("X-Vault-Request", "true")
@@ -368,7 +374,7 @@ public class Logical extends OperationsBase {
             throws VaultException {
         return retry(attempt -> {
             // Make an HTTP request to Vault
-            final RestResponse restResponse = new Rest()//NOPMD
+            final RestResponse restResponse = getRest()//NOPMD
                     .url(config.getAddress() + "/v1/" + adjustPathForDelete(path,
                             config.getPrefixPathDepth(), operation))
                     .header("X-Vault-Token", config.getToken())
@@ -418,7 +424,7 @@ public class Logical extends OperationsBase {
         return retry(attempt -> {
             // Make an HTTP request to Vault
             JsonObject versionsToDelete = new JsonObject().add("versions", versions);
-            final RestResponse restResponse = new Rest()//NOPMD
+            final RestResponse restResponse = getRest()//NOPMD
                     .url(config.getAddress() + "/v1/" + adjustPathForVersionDelete(path,
                             config.getPrefixPathDepth()))
                     .header("X-Vault-Token", config.getToken())
@@ -478,7 +484,7 @@ public class Logical extends OperationsBase {
         return retry(attempt -> {
             // Make an HTTP request to Vault
             JsonObject versionsToUnDelete = new JsonObject().add("versions", versions);
-            final RestResponse restResponse = new Rest() //NOPMD
+            final RestResponse restResponse = getRest() //NOPMD
                     .url(config.getAddress() + "/v1/" + adjustPathForVersionUnDelete(path,
                             config.getPrefixPathDepth()))
                     .header("X-Vault-Token", config.getToken())
@@ -525,7 +531,7 @@ public class Logical extends OperationsBase {
         return retry(attempt -> {
             // Make an HTTP request to Vault
             JsonObject versionsToDestroy = new JsonObject().add("versions", versions);
-            final RestResponse restResponse = new Rest()//NOPMD
+            final RestResponse restResponse = getRest()//NOPMD
                     .url(config.getAddress() + "/v1/" + adjustPathForVersionDestroy(path,
                             config.getPrefixPathDepth()))
                     .header("X-Vault-Token", config.getToken())
@@ -562,7 +568,7 @@ public class Logical extends OperationsBase {
             // Make an HTTP request to Vault
             JsonObject kvToUpgrade = new JsonObject().add("options",
                     new JsonObject().add("version", 2));
-            final RestResponse restResponse = new Rest()//NOPMD
+            final RestResponse restResponse = getRest()//NOPMD
                     .url(config.getAddress() + "/v1/sys/mounts/" + (kvPath.replaceAll("/", "")
                             + "/tune"))
                     .header("X-Vault-Token", config.getToken())
@@ -608,4 +614,34 @@ public class Logical extends OperationsBase {
     public Integer getEngineVersionForSecretPath(final String path) {
         return this.engineVersionForSecretPath(path);
     }
+
+    private JsonObject buildJsonFromMap(Map<String, Object> nameValuePairs) {
+        JsonObject jsonObject = Json.object();
+        if (nameValuePairs != null) {
+            for (final Map.Entry<String, Object> pair : nameValuePairs.entrySet()) {
+                final Object value = pair.getValue();
+                if (value == null) {
+                    jsonObject = jsonObject.add(pair.getKey(), (String) null);
+                } else if (value instanceof Boolean) {
+                    jsonObject = jsonObject.add(pair.getKey(), (Boolean) pair.getValue());
+                } else if (value instanceof Integer) {
+                    jsonObject = jsonObject.add(pair.getKey(), (Integer) pair.getValue());
+                } else if (value instanceof Long) {
+                    jsonObject = jsonObject.add(pair.getKey(), (Long) pair.getValue());
+                } else if (value instanceof Float) {
+                    jsonObject = jsonObject.add(pair.getKey(), (Float) pair.getValue());
+                } else if (value instanceof Double) {
+                    jsonObject = jsonObject.add(pair.getKey(), (Double) pair.getValue());
+                } else if (value instanceof JsonValue) {
+                    jsonObject = jsonObject.add(pair.getKey(),
+                            (JsonValue) pair.getValue());
+                } else {
+                    jsonObject = jsonObject.add(pair.getKey(),
+                            pair.getValue().toString());
+                }
+            }
+        }
+        return jsonObject;
+    }
+
 }

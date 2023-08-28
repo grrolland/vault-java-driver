@@ -25,6 +25,7 @@ public class LogicalResponse extends VaultResponse {
     private WrapResponse wrapResponse;
     private Boolean renewable;
     private Long leaseDuration;
+    private final Map<String, String> dataMetadata = new HashMap<>();
 
     /**
      * @param restResponse The raw HTTP response from Vault.
@@ -66,6 +67,10 @@ public class LogicalResponse extends VaultResponse {
         return wrapResponse;
     }
 
+    public DataMetadata getDataMetadata() {
+        return new DataMetadata(dataMetadata);
+    }
+
     private void parseMetadataFields() {
         try {
             final String jsonString = new String(getRestResponse().getBody(),
@@ -88,19 +93,15 @@ public class LogicalResponse extends VaultResponse {
             JsonObject jsonObject = Json.parse(jsonString).asObject();
             if (operation.equals(Logical.logicalOperations.readV2)) {
                 jsonObject = jsonObject.get("data").asObject();
+                JsonValue metadataValue = jsonObject.get("metadata");
+                if (null != metadataValue) {
+                    parseJsonIntoMap(metadataValue.asObject(), dataMetadata);
+                }
             }
             data = new HashMap<>();
             dataObject = jsonObject.get("data").asObject();
-            for (final JsonObject.Member member : dataObject) {
-                final JsonValue jsonValue = member.getValue();
-                if (jsonValue == null || jsonValue.isNull()) {
-                    continue;
-                } else if (jsonValue.isString()) {
-                    data.put(member.getName(), jsonValue.asString());
-                } else {
-                    data.put(member.getName(), jsonValue.toString());
-                }
-            }
+            parseJsonIntoMap(dataObject, data);
+
             // For list operations convert the array of keys to a list of values
             if (operation.equals(Logical.logicalOperations.listV1) || operation.equals(
                     Logical.logicalOperations.listV2)) {
@@ -119,4 +120,18 @@ public class LogicalResponse extends VaultResponse {
         } catch (Exception ignored) {
         }
     }
+
+    private void parseJsonIntoMap(final JsonObject jsonObject, final Map<String, String> map) {
+        for (final JsonObject.Member member : jsonObject) {
+            final JsonValue jsonValue = member.getValue();
+            if (jsonValue == null || jsonValue.isNull()) {
+                continue;
+            } else if (jsonValue.isString()) {
+                map.put(member.getName(), jsonValue.asString());
+            } else {
+                map.put(member.getName(), jsonValue.toString());
+            }
+        }
+    }
+
 }
