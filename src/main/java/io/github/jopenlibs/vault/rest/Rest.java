@@ -10,6 +10,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.Socket;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -23,8 +24,9 @@ import java.util.Map;
 import java.util.TreeMap;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 
 /**
  * <p>A simple client for issuing HTTP requests.  Supports the HTTP verbs:</p>
@@ -73,7 +75,27 @@ public class Rest {
     static {
         try {
             DISABLED_SSL_CONTEXT = SSLContext.getInstance("TLSv1.2");
-            DISABLED_SSL_CONTEXT.init(null, new TrustManager[]{new X509TrustManager() {
+            DISABLED_SSL_CONTEXT.init(null, new TrustManager[]{new X509ExtendedTrustManager() {
+                @Override
+                public void checkClientTrusted(X509Certificate[] chain, String authType,
+                        Socket socket) throws CertificateException {
+                }
+
+                @Override
+                public void checkServerTrusted(X509Certificate[] chain, String authType,
+                        Socket socket) throws CertificateException {
+                }
+
+                @Override
+                public void checkClientTrusted(X509Certificate[] chain, String authType,
+                        SSLEngine engine) throws CertificateException {
+                }
+
+                @Override
+                public void checkServerTrusted(X509Certificate[] chain, String authType,
+                        SSLEngine engine) throws CertificateException {
+                }
+
                 @Override
                 public void checkClientTrusted(final X509Certificate[] x509Certificates,
                         final String s) throws CertificateException {
