@@ -17,7 +17,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import junit.framework.TestCase;
@@ -92,9 +92,7 @@ public class AuthBackendPkiTests {
         // Create a role
         final PkiResponse createRoleResponse = vault.pki().createOrUpdateRole("testRole",
                 new RoleOptions()
-                        .allowedDomains(new ArrayList<>() {{
-                            add("myvault.com");
-                        }})
+                        .allowedDomains(Collections.singletonList("myvault.com"))
                         .allowSubdomains(true)
                         .maxTtl("9h")
         );
@@ -155,9 +153,7 @@ public class AuthBackendPkiTests {
         // Create a role
         final PkiResponse createRoleResponse = vault.pki().createOrUpdateRole("testRole",
                 new RoleOptions()
-                        .allowedDomains(new ArrayList<>() {{
-                            add("myvault.com");
-                        }})
+                        .allowedDomains(Collections.singletonList("myvault.com"))
                         .allowSubdomains(true)
                         .maxTtl("9h")
         );
@@ -209,9 +205,7 @@ public class AuthBackendPkiTests {
         // Create a role
         final PkiResponse createRoleResponse = vault.pki().createOrUpdateRole("testRole",
                 new RoleOptions()
-                        .allowedDomains(new ArrayList<>() {{
-                            add("myvault.com");
-                        }})
+                        .allowedDomains(Collections.singletonList("myvault.com"))
                         .allowSubdomains(true)
                         .maxTtl("9h")
         );

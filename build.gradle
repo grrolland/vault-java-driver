@@ -8,11 +8,11 @@ plugins {
 
 group 'io.github.jopenlibs'
 archivesBaseName = 'vault-java-driver'
-version '5.4.0'
+version '5.4.1'
 
 // This project is actually limited to Java 8 compatibility.  See below.
-sourceCompatibility = 9
-targetCompatibility = 9
+sourceCompatibility = 8
+targetCompatibility = 8
 
 repositories {
     mavenCentral()
