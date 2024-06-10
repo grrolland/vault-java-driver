@@ -26,6 +26,6 @@ jobs:
         env:
           VAULT_VERSION: latest
       - name: Publish with Gradle
-        run: ./gradlew publish
+        run: ./gradlew -Pversion=${GITHUB_REF#refs/heads/release-*} publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

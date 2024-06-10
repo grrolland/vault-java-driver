@@ -89,6 +89,11 @@ def integrationTestTask = tasks.register('integrationTest', Test) {
 }
 
 publishing {
+    publications {
+        create<MavenPublication>("default") {
+            from(components["java"])
+        }
+    }
     repositories {
         maven {
             name = "GitHubPackages"
