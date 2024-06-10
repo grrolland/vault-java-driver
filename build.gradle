@@ -90,8 +90,12 @@ def integrationTestTask = tasks.register('integrationTest', Test) {
 
 publishing {
     publications {
-        create<MavenPublication>("default") {
-            from(components["java"])
+        maven(MavenPublication) {
+            groupId = 'io.github.grrolland'
+            artifactId = 'vault-java-driver'
+            version = '5.4.1'
+
+            from components.java
         }
     }
     repositories {
