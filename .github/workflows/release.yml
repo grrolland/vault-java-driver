@@ -45,18 +45,10 @@ jobs:
             --info
         env:
           VAULT_VERSION: ${{ matrix.vault }}
-
-      ##
-      #  Create a Github Release
-      #
-      - uses: ncipollo/release-action@v1
+      - name: Publish with Gradle
+        uses: gradle/gradle-build-action@v2
         with:
-          body: Release version ${{ steps.get_tag_name.outputs.VERSION }}
-          tag: ${{ steps.get_tag_name.outputs.VERSION }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: "build/libs/vault-java-driver-${{ steps.get_tag_name.outputs.VERSION }}.jar"
-
-      - name: Publish package
-        run: ./gradlew publish
+          arguments: |
+            publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
