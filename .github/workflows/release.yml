@@ -1,16 +1,12 @@
-name: CI
+name: Create Release
 
 on:
   push:
     branches:
-      - "master"
-  pull_request:
-    branches:
-      - "master"
+      - 'release-*'
 
 jobs:
-  build:
-    name: Build on JDK ${{ matrix.java }}, ${{ matrix.os }} and Vault ${{ matrix.vault }}
+  release:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -35,14 +31,18 @@ jobs:
           - 1.15.0
           - latest
         os:
-        - ubuntu-latest
-        - windows-latest
+          - ubuntu-latest
+          - windows-latest
         include:
           # TODO(casz) remove once https://github.com/testcontainers/testcontainers-java/pull/1780 is available
           - os: 'ubuntu-latest'
             tasks: 'integrationTest'
 
     steps:
+      - name: Get tag name
+        id: get_tag_name
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/heads\/release-/}
+
       - uses: actions/checkout@v1
       - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v2
@@ -59,8 +59,13 @@ jobs:
             --info
         env:
           VAULT_VERSION: ${{ matrix.vault }}
-      - uses: actions/upload-artifact@v3  # upload test results
-        if: success() || failure()        # run this step even if previous step failed
+
+      ##
+      #  Create a Github Release
+      #
+      - uses: ncipollo/release-action@v1
         with:
-          name: test-results
-          path: build/test-results/
+          body: Release version ${{ steps.get_tag_name.outputs.VERSION }}
+          tag: ${{ steps.get_tag_name.outputs.VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: "build/libs/vault-java-driver-${{ steps.get_tag_name.outputs.VERSION }}.jar"
