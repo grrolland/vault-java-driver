@@ -45,8 +45,6 @@ dependencies {
 //   the inconvenience.  In any case, you should not commit changes to source control without confirming that the project builds.
 compileJava {
     exclude 'module-info.java'
-
-    options.compilerArgs = ['--release', '8']
 }
 
 tasks.withType(JavaCompile).configureEach {
