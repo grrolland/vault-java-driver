@@ -7,46 +7,29 @@ on:
 
 jobs:
   release:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
-    strategy:
-      matrix:
-        java:
-          - 11
-        vault:
-          - latest
-        os:
-          - ubuntu-latest
-        include:
-          # TODO(casz) remove once https://github.com/testcontainers/testcontainers-java/pull/1780 is available
-          - os: 'ubuntu-latest'
-            tasks: 'integrationTest'
 
     steps:
-      - name: Get tag name
-        id: get_tag_name
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/heads/release-*}
-
       - uses: actions/checkout@v1
-      - name: Set up JDK ${{ matrix.java }}
+      - name: Set up JDK 11
         uses: actions/setup-java@v2
         with:
-          java-version: ${{ matrix.java }}
+          java-version: 11
           distribution: temurin
       - name: Build with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: |
             build
-            ${{ matrix.tasks }}
             -s
             --info
         env:
-          VAULT_VERSION: ${{ matrix.vault }}
+          VAULT_VERSION: latest
       - name: Publish with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: |
             publish
