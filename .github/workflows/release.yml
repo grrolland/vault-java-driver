@@ -9,7 +9,7 @@ jobs:
   release:
     runs-on: ${{ matrix.os }}
     permissions:
-      contents: read
+      contents: write
       packages: write
     strategy:
       matrix:
